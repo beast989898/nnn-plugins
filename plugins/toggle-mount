@@ -1,12 +1,12 @@
 #!/usr/bin/env sh
 
-# Description: Mount or unmount the selected directory if it is a mountpoint.
+# Description: Mount or unmount directories defined in /etc/fstab.
 #
 # Dependencies: mountpoint, pgrep, pkill, setsid, sudo
 #
 # Notes: 
-#   1. Will handle preview-tui as generating the dir tree uses the mounted filesystem.
-#   2. Uses the first path in the selection by default, falls back to current file/directory otherwise.
+#   1. Will handle preview-tui, as generating the dir tree uses the mounted filesystem.
+#   2. Uses the selection by default, falls back to current file/directory otherwise.
 #
 # Shell: POSIX compliant
 # Author: beast989898
@@ -16,45 +16,43 @@ SELECTION="${NNN_SEL:-$CONFIG_DIR/.selection}"
 PREVIEW_TUI_PATH="$CONFIG_DIR/plugins/preview-tui"
 
 if [ -s "$SELECTION" ]; then
-    TARGET="$(head -n 1 "$SELECTION")"
+    TARGETS="$(tr '\0' '\n' < "$SELECTION")"
 else
-    TARGET="$1"
+    TARGETS="$1"
 fi
 
-[ -d "$TARGET" ] || {
-    printf "Not a directory: %s\n" "$TARGET" >&2
-    exit 1
-}
-
 # Kill the previewer so the mounted directory is not busy
-kill_previewer() {
-    WAS_RUNNING=0
-    if [ -x "$PREVIEW_TUI_PATH" ]; then
-        if pgrep -f "$PREVIEW_TUI_PATH" >/dev/null; then
-            WAS_RUNNING=1
-            pkill -f "$PREVIEW_TUI_PATH"
+WAS_RUNNING=0
+if [ -x "$PREVIEW_TUI_PATH" ] && pgrep -f "$PREVIEW_TUI_PATH" >/dev/null; then
+        WAS_RUNNING=1
+        pkill -f "$PREVIEW_TUI_PATH"
+fi
+
+printf '%s\n' "$TARGETS" | while IFS= read -r target; do
+    [ -z "$target" ] && continue
+
+    [ -d "$target" ] || {
+        printf "Not a directory: %s\n" "$target" >&2
+        continue
+    }
+
+    if mountpoint -q "$target"; then
+        if sudo umount "$target"; then
+            printf "Unmounted: %s\n" "$target"
+        else
+            printf "Error: %s is busy!\n" "$target" >&2
+        fi
+    else
+        if sudo mount "$target"; then
+            printf "Mounted: %s\n" "$target"
+        else
+            printf "Failed to mount: %s\n" "$target" >&2
         fi
     fi
-}
+done
 
-if mountpoint -q "$TARGET"; then
-    kill_previewer
-
-    if sudo umount "$TARGET"; then
-        printf "Unmounted: %s\n" "$TARGET"
-    else
-        printf "Error: %s is busy!\n" "$TARGET" >&2
-    fi
-
-    if [ "${WAS_RUNNING:-0}" -eq 1 ] && [ -x "$PREVIEW_TUI_PATH" ]; then
-        setsid "$PREVIEW_TUI_PATH" >/dev/null 2>&1 &
-    fi
-else
-    if sudo mount "$TARGET"; then
-        printf "Mounted: %s\n" "$TARGET"
-    else
-        printf "Failed to mount: %s\n" "$TARGET" >&2
-        exit 1
-    fi
+# Restart preview-tui if process was killed
+if [ "${WAS_RUNNING:-0}" -eq 1 ] && [ -x "$PREVIEW_TUI_PATH" ]; then
+    setsid "$PREVIEW_TUI_PATH" >/dev/null 2>&1 &
 fi
 
