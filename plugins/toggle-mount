@@ -52,7 +52,7 @@ printf '%s\n' "$TARGETS" | while IFS= read -r target; do
 done
 
 # Restart preview-tui if process was killed
-if [ "${WAS_RUNNING:-0}" -eq 1 ] && [ -x "$PREVIEW_TUI_PATH" ]; then
+if [ "$WAS_RUNNING" -eq 1 ] && [ -x "$PREVIEW_TUI_PATH" ]; then
     setsid "$PREVIEW_TUI_PATH" >/dev/null 2>&1 &
 fi
 
