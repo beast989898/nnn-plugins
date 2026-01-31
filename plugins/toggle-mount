@@ -26,7 +26,7 @@ fi
     exit 1
 }
 
-# 2. Kill the previewer so the mounted directory is not busy
+# Kill the previewer so the mounted directory is not busy
 kill_previewer() {
     WAS_RUNNING=0
     if [ -x "$PREVIEW_TUI_PATH" ]; then
