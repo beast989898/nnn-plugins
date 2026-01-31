@@ -21,7 +21,7 @@ else
     TARGETS="$1"
 fi
 
-# Kill the previewer so the mounted directory is not busy
+# Kill preview-tui so the mounted directory is not busy
 WAS_RUNNING=0
 if [ -x "$PREVIEW_TUI_PATH" ] && pgrep -f "$PREVIEW_TUI_PATH" >/dev/null; then
         WAS_RUNNING=1
