@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+
+# Description: Transcode videos to prores.
+# Created for compatibility with Davinci Resolve.
+#
+# Dependencies: ffmpeg
+#
+# Notes: 
+#   1. Uses the selection by default, falls back to current file otherwise.
+#   2. Will not overwrite files if the name already exists.
+#
+# Shell: POSIX compliant
+# Author: beast989898
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nnn"
+SELECTION="${NNN_SEL:-$CONFIG_DIR/.selection}"
+
+if [ -s "$SELECTION" ]; then
+    TARGETS="$(tr '\0' '\n' < "$SELECTION")"
+else
+    TARGETS="$1"
+fi
+
+printf '%s\n' "$TARGETS" | while IFS= read -r target; do
+    [ -z "$target" ] && continue
+
+    if file --mime-type "$target" | grep -q video/; then
+        filename=$(basename -- "$target")
+        filename="${filename%.*}"
+        dirname="$(dirname -- "$target")"
+        output_file="${dirname}/${filename}_transcoded.mov"
+
+        ffmpeg -nostdin -n -i "$target" -c:v prores_ks -profile:v 3 -c:a pcm_s24le "$output_file"
+    fi
+done
