@@ -11,6 +11,9 @@
 # Shell: POSIX compliant
 # Author: beast989898
 
+# If you want system notifications, set notify equal to 1
+notify=0
+
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nnn"
 SELECTION="${NNN_SEL:-$CONFIG_DIR/.selection}"
 PREVIEW_TUI_PATH="$CONFIG_DIR/plugins/preview-tui"
@@ -32,21 +35,41 @@ printf '%s\n' "$TARGETS" | while IFS= read -r target; do
     [ -z "$target" ] && continue
 
     [ -d "$target" ] || {
-        printf "Not a directory: %s\n" "$target" >&2
+        if [ "$notify" -eq 1 ]; then
+            notify-send "Error" "$target is not a directory"
+        else
+            printf "Error: %s is not a directory\n" "$target" >&2
+        fi
         continue
     }
 
     if mountpoint -q "$target"; then
         if sudo umount "$target"; then
-            printf "Unmounted: %s\n" "$target"
+            if [ "$notify" -eq 1 ]; then
+                notify-send "Success" "Unmounted $target"
+            else
+                printf "Success: Unmounted %s\n" "$target"
+            fi
         else
-            printf "Error: %s is busy!\n" "$target" >&2
+            if [ "$notify" -eq 1 ]; then
+                notify-send "Error" "$target is busy"
+            else
+                printf "Error: %s is busy\n" "$target" >&2
+            fi
         fi
     else
         if sudo mount "$target"; then
-            printf "Mounted: %s\n" "$target"
+            if [ "$notify" -eq 1 ]; then
+                notify-send "Success" "Mounted $target"
+            else
+                printf "Success: Mounted %s\n" "$target"
+            fi
         else
-            printf "Failed to mount: %s\n" "$target" >&2
+            if [ "$notify" -eq 1 ]; then
+                notify-send "Error" "Failed to mount $target"
+            else
+                printf "Error: Failed to mount %s\n" "$target" >&2
+            fi
         fi
     fi
 done
