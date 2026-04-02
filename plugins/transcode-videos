@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-# Description: Transcode videos to prores.
+# Description: Transcode videos to prores or back to mp4.
 # Created for compatibility with Davinci Resolve.
 #
 # Dependencies: ffmpeg
@@ -24,12 +24,33 @@ fi
 printf '%s\n' "$TARGETS" | while IFS= read -r target; do
     [ -z "$target" ] && continue
 
-    if file --mime-type "$target" | grep -q video/; then
-        filename=$(basename -- "$target")
-        filename="${filename%.*}"
+    if file -b --mime-type "$target" | grep -Eq 'video/(quicktime|mp4)'; then
+        base=$(basename -- "$target")
+        filename="${base%.*}"
         dirname="$(dirname -- "$target")"
-        output_file="${dirname}/${filename}_transcoded.mov"
 
-        ffmpeg -nostdin -n -i "$target" -c:v prores_ks -profile:v 3 -c:a pcm_s24le "$output_file"
+        case "$base" in
+            *_transcoded*.mov)
+                output_filename="${dirname}/${filename%_transcoded*}"
+                output_extension="mp4"
+                ;;
+            *)
+                output_filename="${dirname}/${filename}_transcoded"
+                output_extension="mov"
+                ;;
+        esac
+
+        output_file="${output_filename}.$output_extension"
+        counter=1
+        while [ -e "$output_file" ]; do
+            output_file="${output_filename}_$counter.$output_extension"
+            counter=$((counter + 1))
+        done
+        
+        if [ "$output_extension" = "mp4" ]; then
+            ffmpeg -nostdin -i "$target" -c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -c:a aac -b:a 256k "$output_file"
+        else
+            ffmpeg -nostdin -i "$target" -c:v prores_ks -profile:v 3 -vendor apl0 -c:a pcm_s24le "$output_file"
+        fi
     fi
 done
