@@ -24,7 +24,7 @@ fi
 printf '%s\n' "$TARGETS" | while IFS= read -r target; do
     [ -z "$target" ] && continue
 
-    if file -b --mime-type "$target" | grep -Eq 'video/(quicktime|mp4)'; then
+    if file -b --mime-type "$target" | grep -Eq 'video/(quicktime|mp4|x-matroska)'; then
         base=$(basename -- "$target")
         filename="${base%.*}"
         dirname="$(dirname -- "$target")"
@@ -32,6 +32,10 @@ printf '%s\n' "$TARGETS" | while IFS= read -r target; do
         case "$base" in
             *_transcoded*.mov)
                 output_filename="${dirname}/${filename%_transcoded*}"
+                output_extension="mp4"
+                ;;
+            *.mov)
+                output_filename="${dirname}/${filename}"
                 output_extension="mp4"
                 ;;
             *)
